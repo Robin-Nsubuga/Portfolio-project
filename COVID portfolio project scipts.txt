@@ -1,0 +1,251 @@
+ROBIN NUSUBGA SIDNEY PORTFOLIO PROJECT
+DIFFERENT ANALYSES OF COVID-19 DATA
+
+--selection of data i need
+
+SELECT
+*
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+WHERE
+ continent is not null;
+
+
+SELECT
+  location, date, total_cases, new_cases, total_deaths, population
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is not null
+
+ORDER BY
+  1,2;
+
+
+--total cases vis-à-vis total deaths 
+--likelihood of death if you contracted covid at time of data collection in your country
+
+SELECT
+  location, date, total_cases, total_deaths,(total_deaths/total_cases)*100 as Grim_reaper_calling_percentage
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE location = 'Uganda'and continent is not null
+
+
+ORDER BY
+  1,2;
+
+--total cases vis-à-vis population  
+--shows percentage of population that got infected with covid
+
+SELECT
+  location, date,population, total_cases,(total_cases/population)*100 as infected_population
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE location = 'Uganda'and continent is not null
+
+
+ORDER BY
+  1,2;
+
+--countries with highest infection rate compared to population
+
+SELECT
+  location,population, MAX(total_cases)as highestInfectionCount,(MAX(total_cases)/population)*100 as infected_population_percentage
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+WHERE continent is not null
+group by location, population
+
+ORDER BY
+  4 desc;
+
+
+--countries with the highest death count per population
+
+SELECT
+  location,population, MAX(cast(total_deaths as int))as HighestDeathCount,(MAX(total_deaths)/population)*100 as dead_population_percentage
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+WHERE continent is not null
+group by location, population
+
+ORDER BY
+  4 desc;
+
+--countries with the highest death count
+
+SELECT
+  location,MAX(total_deaths)as HighestDeathCount
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is not null
+
+group by location
+
+ORDER BY
+  2 desc;
+
+
+
+--CONTINENTS
+--continents with the highest death count
+--the data has continent names in the location column (where the continent name in the continent column is null) so that's why the syntax below appears as such
+--if you only use the continent column, it misses out some countries like Canada in N.A because in the data, the continent name in the continent column corresponding to Canada is null
+
+SELECT
+  location,MAX(total_deaths)as HighestDeathCount
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is null
+
+group by location
+
+ORDER BY
+  2 desc;
+
+
+--Using continent column only below, may have some missing data but just an example to be used in tableau for the data viz
+--showing continents with the highest death count
+
+SELECT
+  continent,MAX(total_deaths)as HighestDeathCount
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is not null
+
+group by continent
+
+ORDER BY
+  2 desc;
+
+
+--GLOBAL NUMBERS  
+
+
+--total cases and deaths globally 
+
+SELECT
+  SUM(new_cases)as all_cases,SUM(new_deaths)as all_deaths, (SUM(new_deaths)/SUM(new_cases))*100 as death_percentage_global
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is not null;
+
+
+
+
+
+
+
+--total cases and deaths filtered by date
+
+SELECT
+  date,SUM(new_cases)as all_cases,SUM(new_deaths)as all_deaths, (SUM(new_deaths)/SUM(new_cases))*100 as death_percentage_global
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths`
+
+WHERE continent is not null
+
+GROUP BY date
+
+
+ORDER BY
+  1,2;
+
+
+--joining 2 tables to compare different data
+--deaths table and vaccination table
+
+--LOOKING AT TOTAL POPULATION VS VACCINATIONS 
+
+SELECT
+deaths.continent, deaths.location, deaths.date, deaths.population, vaccines.new_vaccinations
+
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths` AS deaths
+  JOIN robin-portfolio-project.Covid_deaths.Covid_vaccines AS vaccines
+  on deaths.location= vaccines.location
+  and deaths.date=vaccines.date
+
+WHERE 
+deaths.continent is not null 
+
+ORDER BY 
+2,3;
+
+
+--making cummulative additions to calculate total vaccinations per day in different countries 
+
+SELECT
+deaths.continent, deaths.location, deaths.date, deaths.population, vaccines.new_vaccinations, SUM(vaccines.new_vaccinations) OVER (PARTITION BY deaths.location ORDER BY deaths.location, deaths.date) as Cummulative_vaccinations_per_day
+
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths` AS deaths
+  JOIN robin-portfolio-project.Covid_deaths.Covid_vaccines AS vaccines
+  on deaths.location= vaccines.location
+  and deaths.date=vaccines.date
+
+WHERE 
+deaths.continent is not null 
+
+ORDER BY 
+2,3;
+
+-- Using CTE to generate percentage of vaccinated population by country 
+
+WITH PopvsVac AS
+(
+SELECT
+deaths.continent, deaths.location, deaths.date, deaths.population, vaccines.new_vaccinations, SUM(vaccines.new_vaccinations) OVER (PARTITION BY deaths.location ORDER BY deaths.location, deaths.date) as Cummulative_vaccinations_per_day
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths` AS deaths
+  JOIN robin-portfolio-project.Covid_deaths.Covid_vaccines AS vaccines
+  on deaths.location= vaccines.location
+  and deaths.date=vaccines.date
+
+WHERE 
+deaths.continent is not null 
+
+ORDER BY 
+2,3
+)
+SELECT*, ( Cummulative_vaccinations_per_day/population)*100 as Percentage_Vaccinated
+FROM PopvsVac;
+
+
+--Using a temp table instead of CTE
+
+CREATE TEMP TABLE PERCENTAGE_VACCINATED AS
+
+ 
+SELECT
+deaths.continent, deaths.location, deaths.date, deaths.population, vaccines.new_vaccinations, SUM(vaccines.new_vaccinations) OVER (PARTITION BY deaths.location ORDER BY deaths.location, deaths.date) as Cummulative_vaccinations_per_day
+FROM
+  `robin-portfolio-project.Covid_deaths.Actual_Covid_deaths` AS deaths
+  JOIN robin-portfolio-project.Covid_deaths.Covid_vaccines AS vaccines
+  on deaths.location= vaccines.location
+  and deaths.date=vaccines.date
+
+WHERE 
+deaths.continent is not null 
+
+ORDER BY 
+2,3;
+
+
+SELECT
+  *, (Cummulative_vaccinations_per_day/population)*100 as Percentage_Vaccinated
+
+FROM
+  PERCENTAGE_VACCINATED
+
+WHERE
+  new_vaccinations IS NOT NULL
+   AND  Cummulative_vaccinations_per_day IS NOT NULL
+    AND Percentage_Vaccinated IS NOT NULL;
