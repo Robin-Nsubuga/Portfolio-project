@@ -249,3 +249,4 @@ WHERE
   new_vaccinations IS NOT NULL
    AND  Cummulative_vaccinations_per_day IS NOT NULL
     AND Percentage_Vaccinated IS NOT NULL;
+
